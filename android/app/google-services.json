@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "501823114178",
+    "project_id": "alfacontrol-ae4e4",
+    "storage_bucket": "alfacontrol-ae4e4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:501823114178:android:b2ed953d96d91b5037245b",
+        "android_client_info": {
+          "package_name": "com.alfa.alfa_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDTgzx_pTS9_vv5zrrVEjgo3ObrE6up5eg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
