@@ -110,14 +110,19 @@ class _AlfaJornadaMarkPainter extends CustomPainter {
         if (target <= metric.length) {
           final tangent = metric.getTangentForOffset(target);
           if (tangent != null) {
+            // Halo colorido (visível tanto no fundo claro do login quanto
+            // no fundo escuro do splash) + núcleo na cor da marca (maior
+            // que a espessura do traço, pra "abaular" visivelmente por
+            // cima da linha) + faísca branca central pro brilho.
             canvas.drawCircle(
               tangent.position,
-              5.5,
+              9,
               Paint()
-                ..color = symbolColor.withValues(alpha: 0.35)
-                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+                ..color = symbolColor.withValues(alpha: 0.45)
+                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
             );
-            canvas.drawCircle(tangent.position, 2.4, Paint()..color = Colors.white);
+            canvas.drawCircle(tangent.position, 3.6, Paint()..color = symbolColor);
+            canvas.drawCircle(tangent.position, 1.5, Paint()..color = Colors.white);
           }
           break;
         }

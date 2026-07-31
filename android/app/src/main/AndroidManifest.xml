@@ -13,11 +13,11 @@
          em vez de um aviso claro de permissão faltando. Sem ela `open_filex`
          só abre um visualizador de arquivo em vez de disparar o
          PackageInstaller nativo (o APK "baixa" mas não instala). Complementa
-         a permissão do usuário em Configurações → Apps → AlfaMobi →
+         a permissão do usuário em Configurações → Apps → AlfaJornada →
          Instalar apps desconhecidos. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
-        android:label="AlfaMobi"
+        android:label="AlfaJornada"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

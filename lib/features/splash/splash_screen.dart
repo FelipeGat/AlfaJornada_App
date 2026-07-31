@@ -2,10 +2,12 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-/// Splash screen de abertura do AlfaMobi — não representa nenhum produto
-/// (AlfaGym/AlfaControl/AlfaJornada têm suas próprias cores); é só a marca
-/// guarda-chuva. Fica na tela ~3s, sem texto explicativo, sem cards — só
-/// logo, um brilho discreto e partículas digitais bem sutis ao fundo.
+import '../jornada/branding/alfa_jornada_mark.dart';
+
+/// Splash screen de abertura do AlfaJornada. Reusa o mesmo símbolo animado
+/// (α-Percurso) e a mesma paleta da tela de login — fica na tela ~3s, sem
+/// cards, só o logo se desenhando, o slogan oficial do produto e um fundo
+/// discreto com partículas na cor da marca.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, required this.onFinished});
 
@@ -18,7 +20,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
   static const _kBgTop = Color(0xFF0B1020);
   static const _kBgBottom = Color(0xFF101828);
-  static const _kCyan = Color(0xFF22D3EE);
+  static const _kCyan = Color(0xFF2563EB);
   /// Ponto de convergência do logo — deslocado pra cima do centro pra não
   /// repetir a composição da tela de login que vem em seguida.
   static const _kLogoAlign = Alignment(0, -0.32);
@@ -45,11 +47,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     curve: const Interval(0.25, 0.44, curve: Curves.easeOut),
   );
 
-  late final Animation<double> _shineProgress = CurvedAnimation(
-    parent: _seq,
-    curve: const Interval(0.37, 0.55, curve: Curves.easeInOut),
-  );
-
   late final Animation<double> _particlesOpacity = CurvedAnimation(
     parent: _seq,
     curve: const Interval(0.55, 0.72, curve: Curves.easeIn),
@@ -69,13 +66,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   late final Animation<double> _logoLift = Tween<double>(begin: 0, end: -20).animate(
     CurvedAnimation(parent: _seq, curve: const Interval(0.78, 0.875, curve: Curves.easeOut)),
-  );
-
-  /// Pulso de luz que percorre as linhas de convergência (dos 3 sistemas
-  /// até o logo) perto do fim da sequência — reforça o conceito de "hub".
-  late final Animation<double> _pulseT = CurvedAnimation(
-    parent: _seq,
-    curve: const Interval(0.60, 0.95, curve: Curves.easeInOut),
   );
 
   List<_Particle> _generateParticles(int count) {
@@ -150,13 +140,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
-                        colors: [Color(0x2622D3EE), Colors.transparent],
+                        colors: [Color(0x262563EB), Colors.transparent],
                       ),
                     ),
                   ),
                 ),
               ),
-              // Partículas digitais + linhas de conexão sutis.
+              // Partículas digitais + linhas de conexão sutis, na cor da marca.
               Opacity(
                 opacity: _particlesOpacity.value,
                 child: CustomPaint(
@@ -167,32 +157,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   ),
                 ),
               ),
-              // Linhas de convergência — os 3 sistemas "fluindo" pro logo,
-              // com um pulso de luz percorrendo cada linha perto do fim.
-              CustomPaint(
-                painter: _HubConvergePainter(
-                  progress: _particlesOpacity.value,
-                  pulseT: _pulseT.value,
-                  color: _kCyan,
-                  target: _kLogoAlign,
-                ),
-              ),
-              // Nomes dos sistemas, bem clarinhos ao fundo — dá o recado
-              // de "ecossistema" sem virar lista/menu (sem cards, sem
-              // ícones, só texto quase invisível espalhado atrás do logo).
-              Opacity(
-                opacity: _particlesOpacity.value,
-                child: const Stack(
-                  children: [
-                    Align(alignment: Alignment(-0.62, -0.56), child: _SystemLabel('ALFAGYM')),
-                    Align(alignment: Alignment(0.58, -0.22), child: _SystemLabel('ALFACONTROL')),
-                    Align(alignment: Alignment(-0.5, 0.62), child: _SystemLabel('ALFAJORNADA')),
-                  ],
-                ),
-              ),
-              // Logo + slogan + loader — deslocados pra cima do centro
-              // (a tela de login que vem em seguida já ocupa a área
-              // central, então o splash não pode "parecer igual").
+              // Logo (mesmo símbolo animado da tela de login) + slogan +
+              // loader — deslocados pra cima do centro pra não repetir a
+              // composição da tela que vem em seguida.
               Align(
                 alignment: _kLogoAlign,
                 child: Transform.translate(
@@ -204,26 +171,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         opacity: _logoOpacity.value,
                         child: Transform.scale(
                           scale: _breathScale,
-                          child: ShaderMask(
-                            blendMode: BlendMode.srcATop,
-                            shaderCallback: (bounds) {
-                              final p = _shineProgress.value;
-                              return LinearGradient(
-                                begin: Alignment(-1.6 + 3.2 * p, -1),
-                                end: Alignment(-0.6 + 3.2 * p, 1),
-                                colors: const [
-                                  Colors.transparent,
-                                  Color(0x66FFFFFF),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.35, 0.5, 0.65],
-                              ).createShader(bounds);
-                            },
-                            child: Image.asset(
-                              'assets/app_icon/alfamobi_splash.png',
-                              width: 300,
-                              fit: BoxFit.contain,
-                            ),
+                          child: const AlfaJornadaAnimatedLogo(
+                            size: 72,
+                            textColor: Colors.white,
+                            centered: true,
                           ),
                         ),
                       ),
@@ -231,7 +182,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       Opacity(
                         opacity: _sloganOpacity.value,
                         child: Text(
-                          'Seu ecossistema digital.',
+                          'Gestão e controle do seu Departamento Pessoal',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.55),
                             fontSize: 14,
@@ -285,27 +237,6 @@ class _DotsLoader extends StatelessWidget {
           ),
         );
       }),
-    );
-  }
-}
-
-/// Nome de sistema quase invisível ao fundo do splash — só sugere o
-/// "ecossistema", não é lida como menu (sem toque, sem ícone, sem cor
-/// própria de marca).
-class _SystemLabel extends StatelessWidget {
-  const _SystemLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.10),
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 2.2,
-      ),
     );
   }
 }
@@ -368,79 +299,4 @@ class _ParticleFieldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ParticleFieldPainter oldDelegate) => oldDelegate.t != t;
-}
-
-/// Linhas finas convergindo dos 3 sistemas (ALFAGYM/ALFACONTROL/ALFAJORNADA)
-/// até o logo — o conceito de "hub": os produtos fluindo pro AlfaMobi. Um
-/// pulso de luz percorre cada linha perto do fim da sequência.
-class _HubConvergePainter extends CustomPainter {
-  _HubConvergePainter({
-    required this.progress,
-    required this.pulseT,
-    required this.color,
-    required this.target,
-  });
-
-  final double progress;
-  final double pulseT;
-  final Color color;
-  final Alignment target;
-
-  static const _origins = [
-    Alignment(-0.62, -0.56),
-    Alignment(0.58, -0.22),
-    Alignment(-0.5, 0.62),
-  ];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (progress <= 0) return;
-    final targetOffset = target.alongSize(size);
-    final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.10 * progress)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-
-    for (final origin in _origins) {
-      final originOffset = origin.alongSize(size);
-      final mid = Offset.lerp(originOffset, targetOffset, 0.5)!;
-      final curveOffset = Offset(
-        (targetOffset.dy - originOffset.dy) * 0.12,
-        -(targetOffset.dx - originOffset.dx) * 0.12,
-      );
-      final control = mid + curveOffset;
-
-      final path = Path()
-        ..moveTo(originOffset.dx, originOffset.dy)
-        ..quadraticBezierTo(control.dx, control.dy, targetOffset.dx, targetOffset.dy);
-      canvas.drawPath(path, linePaint);
-
-      if (pulseT > 0 && pulseT < 1) {
-        final pulsePos = _quadPoint(originOffset, control, targetOffset, pulseT);
-        canvas.drawCircle(
-          pulsePos,
-          6,
-          Paint()
-            ..color = color.withValues(alpha: 0.22 * progress)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-        );
-        canvas.drawCircle(
-          pulsePos,
-          2.4,
-          Paint()..color = color.withValues(alpha: 0.85 * progress),
-        );
-      }
-    }
-  }
-
-  Offset _quadPoint(Offset p0, Offset p1, Offset p2, double t) {
-    final u = 1 - t;
-    final x = u * u * p0.dx + 2 * u * t * p1.dx + t * t * p2.dx;
-    final y = u * u * p0.dy + 2 * u * t * p1.dy + t * t * p2.dy;
-    return Offset(x, y);
-  }
-
-  @override
-  bool shouldRepaint(covariant _HubConvergePainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.pulseT != pulseT;
 }

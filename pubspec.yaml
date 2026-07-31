@@ -71,10 +71,10 @@ dev_dependencies:
 
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/app_icon/alfamobi_splash.png
+  image: assets/app_icon/alfajornada_splash.png
   android_12:
     color: "#FFFFFF"
-    image: assets/app_icon/alfamobi_splash.png
+    image: assets/app_icon/alfajornada_splash.png
     icon_background_color: "#FFFFFF"
   android: true
   ios: true
@@ -83,12 +83,12 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/app_icon/am-icon-new-alt.png"
+  image_path: "assets/app_icon/alfajornada_icon.png"
   min_sdk_android: 21
   remove_alpha_ios: true
-  background_color_ios: "#FFFFFF"
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/app_icon/am-icon-new-alt.png"
+  background_color_ios: "#2563EB"
+  adaptive_icon_background: "#2563EB"
+  adaptive_icon_foreground: "assets/app_icon/alfajornada_icon_foreground.png"
   web:
     generate: false
   windows:
