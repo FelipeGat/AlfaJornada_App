@@ -169,13 +169,26 @@ class _KioskHomeScreenState extends State<KioskHomeScreen>
     unawaited(_sincronizarRoster());
   }
 
+  /// Guarda contra inicialização CONCORRENTE da câmera: o diálogo de
+  /// permissão dispara inactive→resumed no meio da primeira chamada, e o
+  /// resumed chamava _iniciarCamera de novo — dois CameraController na
+  /// mesma câmera, preview preto (visto em aparelho real, MIUI).
+  bool _iniciandoCamera = false;
+
   Future<void> _iniciarCamera() async {
-    final status = await Permission.camera.request();
-    if (!status.isGranted) {
-      if (mounted) setState(() => _estado = _KioskEstado.semCamera);
-      return;
-    }
+    if (_iniciandoCamera) return;
+    _iniciandoCamera = true;
     try {
+      final status = await Permission.camera.request();
+      if (!status.isGranted) {
+        if (mounted) setState(() => _estado = _KioskEstado.semCamera);
+        return;
+      }
+      // Nunca criar um controller com outro vivo — o antigo segura o
+      // hardware e o novo rende preview preto.
+      final antigo = _controller;
+      _controller = null;
+      await antigo?.dispose();
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
         if (mounted) setState(() => _estado = _KioskEstado.semCamera);
@@ -203,6 +216,8 @@ class _KioskHomeScreenState extends State<KioskHomeScreen>
       _carregarRecentes();
     } catch (e) {
       if (mounted) setState(() => _estado = _KioskEstado.semCamera);
+    } finally {
+      _iniciandoCamera = false;
     }
   }
 
@@ -546,88 +561,111 @@ class _KioskHomeScreenState extends State<KioskHomeScreen>
             ),
           ),
           child: SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Long-press no logotipo = saída administrativa (com
-                      // credencial) — alternativa ao botão voltar pra tablets
-                      // com navegação por gesto travada.
-                      GestureDetector(
-                        onLongPress: _sairDoTotem,
-                        child: AlfaJornadaWordmark(
-                          24,
-                          textColor: Colors.white,
-                          brandColor: b.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Bem-vindo',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat('HH:mm:ss').format(_agora),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 56,
-                          fontWeight: FontWeight.w700,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                      Text(
-                        DateFormat("EEEE, d 'de' MMMM", 'pt_BR').format(_agora),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 20,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.10),
-                            ),
-                          ),
-                          child: Center(child: _conteudoCentral(b)),
-                        ),
-                      ),
-                      if (_estado == _KioskEstado.idle &&
-                          _recentes.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _ultimosRegistros(b),
-                      ],
-                      const SizedBox(height: 14),
-                      _MetodoButton(
-                        onTap:
-                            _estado == _KioskEstado.idle ||
-                                _estado == _KioskEstado.semCamera
-                            ? _abrirFallbackPin
-                            : null,
-                        icon: Icons.dialpad_rounded,
-                        label: 'Teclado',
-                      ),
-                    ],
+            child: Stack(
+              children: [
+                // Engrenagem discreta e SEMPRE visível — a saída
+                // administrativa não pode depender de gesto escondido
+                // (long-press/voltar), senão ninguém acha.
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    onPressed: _sairDoTotem,
+                    tooltip: 'Administração do terminal',
+                    icon: Icon(
+                      Icons.settings_outlined,
+                      color: Colors.white.withValues(alpha: 0.35),
+                      size: 20,
+                    ),
                   ),
                 ),
-              ),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Long-press no logotipo = saída administrativa (com
+                          // credencial) — alternativa ao botão voltar pra tablets
+                          // com navegação por gesto travada.
+                          GestureDetector(
+                            onLongPress: _sairDoTotem,
+                            child: AlfaJornadaWordmark(
+                              24,
+                              textColor: Colors.white,
+                              brandColor: b.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Bem-vindo',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 17,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('HH:mm:ss').format(_agora),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 56,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                          Text(
+                            DateFormat(
+                              "EEEE, d 'de' MMMM",
+                              'pt_BR',
+                            ).format(_agora),
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Expanded(
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 20,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(28),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.10),
+                                ),
+                              ),
+                              child: Center(child: _conteudoCentral(b)),
+                            ),
+                          ),
+                          if (_estado == _KioskEstado.idle &&
+                              _recentes.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            _ultimosRegistros(b),
+                          ],
+                          const SizedBox(height: 14),
+                          _MetodoButton(
+                            onTap:
+                                _estado == _KioskEstado.idle ||
+                                    _estado == _KioskEstado.semCamera
+                                ? _abrirFallbackPin
+                                : null,
+                            icon: Icons.dialpad_rounded,
+                            label: 'Teclado',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

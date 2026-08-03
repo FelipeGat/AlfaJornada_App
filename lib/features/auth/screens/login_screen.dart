@@ -6,6 +6,8 @@ import '../../../core/branding/app_branding.dart';
 import '../../../core/storage/kiosk_storage.dart';
 import '../../jornada/branding/alfa_jornada_mark.dart';
 import '../../kiosk/data/kiosk_api.dart';
+import '../../kiosk/data/kiosk_face_store.dart';
+import '../../kiosk/presentation/kiosk_home_screen.dart';
 import '../../kiosk/presentation/kiosk_setup_screen.dart';
 import '../state/auth_provider.dart';
 
@@ -72,8 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loadCompanyName() async {
-    final name =
-        await context.read<AuthProvider>().companyNameFor(AlfaProduct.jornada);
+    final name = await context.read<AuthProvider>().companyNameFor(
+      AlfaProduct.jornada,
+    );
     if (!mounted) return;
     setState(() => _companyName = name);
   }
@@ -294,8 +297,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 180),
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
                                         curve: Curves.easeOut,
                                         width: 20,
                                         height: 20,
@@ -303,8 +307,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                           color: _remember
                                               ? branding.primary
                                               : Colors.transparent,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                           border: Border.all(
                                             color: _remember
                                                 ? branding.primary
@@ -313,8 +318,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                           ),
                                         ),
                                         child: AnimatedScale(
-                                          duration:
-                                              const Duration(milliseconds: 140),
+                                          duration: const Duration(
+                                            milliseconds: 140,
+                                          ),
                                           scale: _remember ? 1 : 0,
                                           child: const Icon(
                                             Icons.check_rounded,
@@ -375,27 +381,39 @@ class _LoginScreenState extends State<LoginScreen> {
                             // Login button
                             ElevatedButton(
                               onPressed: auth.loading ? null : _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: branding.primary,
-                                foregroundColor: Colors.white,
-                                textStyle: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.3,
-                                ),
-                              ).copyWith(
-                                elevation: WidgetStateProperty.resolveWith(
-                                  (states) => states.contains(WidgetState.hovered)
-                                      ? 6
-                                      : 0,
-                                ),
-                                overlayColor: WidgetStateProperty.resolveWith(
-                                  (states) => states.contains(WidgetState.pressed)
-                                      ? Colors.black.withValues(alpha: 0.12)
-                                      : states.contains(WidgetState.hovered)
-                                          ? Colors.white.withValues(alpha: 0.08)
-                                          : null,
-                                ),
-                              ),
+                              style:
+                                  ElevatedButton.styleFrom(
+                                    backgroundColor: branding.primary,
+                                    foregroundColor: Colors.white,
+                                    textStyle: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ).copyWith(
+                                    elevation: WidgetStateProperty.resolveWith(
+                                      (states) =>
+                                          states.contains(WidgetState.hovered)
+                                          ? 6
+                                          : 0,
+                                    ),
+                                    overlayColor:
+                                        WidgetStateProperty.resolveWith(
+                                          (states) =>
+                                              states.contains(
+                                                WidgetState.pressed,
+                                              )
+                                              ? Colors.black.withValues(
+                                                  alpha: 0.12,
+                                                )
+                                              : states.contains(
+                                                  WidgetState.hovered,
+                                                )
+                                              ? Colors.white.withValues(
+                                                  alpha: 0.08,
+                                                )
+                                              : null,
+                                        ),
+                                  ),
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 180),
                                 child: auth.loading
@@ -408,8 +426,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : const Text('Entrar no sistema',
-                                        key: ValueKey('label')),
+                                    : const Text(
+                                        'Entrar no sistema',
+                                        key: ValueKey('label'),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -441,18 +461,41 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 10),
                             Center(
                               child: GestureDetector(
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => KioskSetupScreen(
-                                      api: KioskApi(context.read<ApiClient>()),
-                                      storage: KioskStorage(),
+                                onTap: () async {
+                                  // Terminal já configurado → direto pro
+                                  // totem (entrar não é sensível; sair é —
+                                  // e essa exige credencial). Sem token →
+                                  // tela de configuração.
+                                  final api = KioskApi(
+                                    context.read<ApiClient>(),
+                                  );
+                                  final storage = KioskStorage();
+                                  final token = await storage.readToken();
+                                  if (!context.mounted) return;
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          token != null && token.isNotEmpty
+                                          ? KioskHomeScreen(
+                                              api: api,
+                                              storage: storage,
+                                              faceStore: KioskFaceStore(),
+                                            )
+                                          : KioskSetupScreen(
+                                              api: api,
+                                              storage: storage,
+                                            ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.tablet_mac_outlined, size: 13, color: branding.textMuted),
+                                    Icon(
+                                      Icons.tablet_mac_outlined,
+                                      size: 13,
+                                      color: branding.textMuted,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       'Modo Totem',
