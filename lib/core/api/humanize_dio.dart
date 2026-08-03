@@ -25,11 +25,13 @@ String humanizeDio(
   }
   if (status == 401) return 'Sessão expirada. Saia e entre de novo.';
   if (status == 403) return 'Sem permissão pra acessar $recurso.';
-  // Mensagem do backend tem prioridade quando vier formatada
-  // (`{"error": "..."}` ou `{"message": "..."}`).
+  // Mensagem do backend tem prioridade quando vier formatada.
+  // `details` vem antes de `error`: no GlobalExceptionHandler do
+  // AlfaJornada, `error` é rótulo genérico ("Operação não permitida")
+  // e `details` carrega a causa real pro usuário.
   final body = e.response?.data;
   if (body is Map) {
-    final msg = body['error'] ?? body['message'];
+    final msg = body['details'] ?? body['error'] ?? body['message'];
     if (msg is String && msg.isNotEmpty) return msg;
   }
   if (status != null && status >= 500) {
