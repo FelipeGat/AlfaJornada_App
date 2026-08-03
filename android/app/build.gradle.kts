@@ -36,7 +36,9 @@ android {
 
     defaultConfig {
         applicationId = "com.alfa.alfa_mobile"
-        minSdk = flutter.minSdkVersion
+        // camera_android_camerax (dependência do Modo Totem) exige minSdk 23 — mais alto que
+        // o default do Flutter. maxOf evita voltar a cair abaixo se o default subir sozinho.
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

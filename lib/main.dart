@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'core/api/api_client.dart';
@@ -34,6 +35,11 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Sem isso, qualquer DateFormat com locale explícito ('pt_BR', usado no
+  // relógio do Modo Totem) lança LocaleDataException a cada rebuild —
+  // no release isso aparecia como tela cinza (ErrorWidget sem texto),
+  // repetindo a cada segundo junto com o timer do relógio.
+  await initializeDateFormatting('pt_BR', null);
 
   final firebaseOptions = DefaultFirebaseOptions.currentPlatform;
   if (firebaseOptions != null) {

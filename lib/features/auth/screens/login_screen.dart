@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/branding/app_branding.dart';
+import '../../../core/storage/kiosk_storage.dart';
 import '../../jornada/branding/alfa_jornada_mark.dart';
+import '../../kiosk/data/kiosk_api.dart';
+import '../../kiosk/presentation/kiosk_setup_screen.dart';
 import '../state/auth_provider.dart';
 
 const _kJornadaBlue = Color(0xFF2563EB);
@@ -433,6 +436,33 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                   ),
                                 ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Center(
+                              child: GestureDetector(
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => KioskSetupScreen(
+                                      api: KioskApi(context.read<ApiClient>()),
+                                      storage: KioskStorage(),
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.tablet_mac_outlined, size: 13, color: branding.textMuted),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Modo Totem',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: branding.textMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),

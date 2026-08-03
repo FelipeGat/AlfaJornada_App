@@ -55,6 +55,13 @@ dependencies:
   path_provider: ^2.1.5
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4
+  camera: ^0.11.0+2
+  permission_handler: ^11.3.1
+  # Reconhecimento facial on-device do Modo Totem (detecção via ML Kit + embedding FaceNet
+  # TFLite + matching local, tudo transitivo). Versão fixa de propósito — pacote pequeno,
+  # mantenedor único; upgrade só depois de testar de novo no piloto. Preso em 0.3.6 (não
+  # 0.3.7) porque a 0.3.7 exige sqflite ^3.12.0 do Dart SDK, acima do que este projeto usa.
+  face_verification: 0.3.6
 
 dev_dependencies:
   flutter_test:
