@@ -7,6 +7,7 @@ class PontoPendente {
     required this.capturedAt,
     this.latitude,
     this.longitude,
+    this.isMocked,
     this.erro,
   });
 
@@ -20,6 +21,10 @@ class PontoPendente {
   final double? latitude;
   final double? longitude;
 
+  /// Sinal de GPS simulado no momento da captura — vai junto na
+  /// sincronização pro backend auditar.
+  final bool? isMocked;
+
   /// Preenchido quando o servidor rejeitou a sincronização por regra de
   /// negócio (ex.: janela de tolerância vencida, período fechado) — o
   /// item continua na fila até o colaborador decidir tentar de novo ou
@@ -31,6 +36,7 @@ class PontoPendente {
         'capturedAt': capturedAt.toIso8601String(),
         'latitude': latitude,
         'longitude': longitude,
+        'isMocked': isMocked,
         'erro': erro,
       };
 
@@ -40,6 +46,7 @@ class PontoPendente {
       capturedAt: DateTime.tryParse(j['capturedAt'] as String? ?? '') ?? DateTime.now(),
       latitude: (j['latitude'] as num?)?.toDouble(),
       longitude: (j['longitude'] as num?)?.toDouble(),
+      isMocked: j['isMocked'] as bool?,
       erro: j['erro'] as String?,
     );
   }

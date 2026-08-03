@@ -54,10 +54,13 @@ class JornadaService {
   /// Registra a batida. [dataHora] só deve ser enviada quando a marcação
   /// foi capturada offline e está sendo sincronizada depois — em uso
   /// normal (online), omitir e deixar o servidor carimbar `now()`.
+  /// [isMocked] repassa o sinal de GPS simulado do aparelho pro backend
+  /// auditar (fake GPS num app de ponto).
   Future<BatidaRegistrada> registrarPonto({
     double? latitude,
     double? longitude,
     DateTime? dataHora,
+    bool? isMocked,
   }) async {
     try {
       final res = await _api.post<Map<String, dynamic>>(
@@ -65,7 +68,10 @@ class JornadaService {
         data: {
           'latitude': latitude,
           'longitude': longitude,
-          'dataHora': dataHora?.toIso8601String(),
+          // O backend parseia `OffsetDateTime` — sem offset o Jackson nem
+          // aceita (400). UTC ('Z') preserva o instante real da captura.
+          'dataHora': dataHora?.toUtc().toIso8601String(),
+          'isMocked': isMocked,
         },
       );
       final data = res.data;

@@ -195,6 +195,17 @@ class _SobreAppSheetState extends State<_SobreAppSheet> {
                   b: b,
                 ),
                 const SizedBox(height: 18),
+                _SectionTitle('LEGAL', b: b),
+                const SizedBox(height: 10),
+                _ContatoTile(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacidade',
+                  valor: 'Política de privacidade e proteção de dados',
+                  url: 'https://jornada.alfasolucoes.cloud/privacidade',
+                  onTap: _abrir,
+                  b: b,
+                ),
+                const SizedBox(height: 18),
                 _SectionTitle('CONTATO', b: b),
                 const SizedBox(height: 10),
                 _ContatoTile(

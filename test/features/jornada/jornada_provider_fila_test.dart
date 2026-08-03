@@ -24,6 +24,7 @@ typedef _RegistrarFn = Future<BatidaRegistrada> Function({
   double? latitude,
   double? longitude,
   DateTime? dataHora,
+  bool? isMocked,
 });
 
 class _FakeJornadaService implements JornadaService {
@@ -34,9 +35,13 @@ class _FakeJornadaService implements JornadaService {
     double? latitude,
     double? longitude,
     DateTime? dataHora,
+    bool? isMocked,
   }) {
     return onRegistrarPonto!(
-        latitude: latitude, longitude: longitude, dataHora: dataHora);
+        latitude: latitude,
+        longitude: longitude,
+        dataHora: dataHora,
+        isMocked: isMocked);
   }
 
   @override
@@ -85,23 +90,28 @@ void main() {
 
   group('registrarPonto', () {
     test('falha de conexão enfileira a marcação e persiste no storage', () async {
-      svc.onRegistrarPonto = ({latitude, longitude, dataHora}) async =>
+      svc.onRegistrarPonto = ({latitude, longitude, dataHora, isMocked}) async =>
           throw JornadaServiceException('sem rede', isConnectionError: true);
       final prov = criarProvider();
       await pumpEventQueue();
 
-      final r = await prov.registrarPonto(latitude: -20.3, longitude: -40.2);
+      final r = await prov.registrarPonto(
+          latitude: -20.3, longitude: -40.2, isMocked: true);
 
       expect(r.enfileirado, isTrue);
       expect(r.erro, isNull);
       expect(prov.temPendentes, isTrue);
       expect(prov.registrando, isFalse);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getStringList(_kChaveFila), hasLength(1));
+      final persistido = prefs.getStringList(_kChaveFila);
+      expect(persistido, hasLength(1));
+      // isMocked capturado offline sobrevive à persistência — vai pro
+      // backend na sincronização.
+      expect(persistido!.single, contains('"isMocked":true'));
     });
 
     test('erro de negócio NÃO enfileira e devolve o erro', () async {
-      svc.onRegistrarPonto = ({latitude, longitude, dataHora}) async =>
+      svc.onRegistrarPonto = ({latitude, longitude, dataHora, isMocked}) async =>
           throw JornadaServiceException('Janela vencida');
       final prov = criarProvider();
       await pumpEventQueue();
@@ -117,7 +127,7 @@ void main() {
         () async {
       final completer = Completer<BatidaRegistrada>();
       var chamadas = 0;
-      svc.onRegistrarPonto = ({latitude, longitude, dataHora}) {
+      svc.onRegistrarPonto = ({latitude, longitude, dataHora, isMocked}) {
         chamadas++;
         return completer.future;
       };
@@ -147,7 +157,7 @@ void main() {
         _kChaveFila: [_pendenteJson('b', nova), _pendenteJson('a', antiga)],
       });
       final recebidas = <DateTime?>[];
-      svc.onRegistrarPonto = ({latitude, longitude, dataHora}) async {
+      svc.onRegistrarPonto = ({latitude, longitude, dataHora, isMocked}) async {
         recebidas.add(dataHora);
         return _batidaFake();
       };
@@ -170,7 +180,7 @@ void main() {
       SharedPreferences.setMockInitialValues({
         _kChaveFila: [_pendenteJson('a', antiga), _pendenteJson('b', nova)],
       });
-      svc.onRegistrarPonto = ({latitude, longitude, dataHora}) async {
+      svc.onRegistrarPonto = ({latitude, longitude, dataHora, isMocked}) async {
         if (dataHora == antiga) {
           throw JornadaServiceException('Período fechado');
         }
@@ -193,7 +203,7 @@ void main() {
           _pendenteJson('b', DateTime(2026, 8, 3, 12)),
         ],
       });
-      svc.onRegistrarPonto = ({latitude, longitude, dataHora}) async =>
+      svc.onRegistrarPonto = ({latitude, longitude, dataHora, isMocked}) async =>
           throw JornadaServiceException('sem rede', isConnectionError: true);
       final prov = criarProvider();
       await pumpEventQueue();
@@ -210,7 +220,7 @@ void main() {
         _kChaveFila: [_pendenteJson('a', DateTime(2026, 8, 3, 8))],
       });
       svc.onRegistrarPonto =
-          ({latitude, longitude, dataHora}) async => throw StateError('boom');
+          ({latitude, longitude, dataHora, isMocked}) async => throw StateError('boom');
       final prov = criarProvider();
       await pumpEventQueue();
 
@@ -219,7 +229,7 @@ void main() {
 
       // Recuperação: com o serviço saudável, a mesma fila sincroniza.
       svc.onRegistrarPonto =
-          ({latitude, longitude, dataHora}) async => _batidaFake();
+          ({latitude, longitude, dataHora, isMocked}) async => _batidaFake();
       await prov.sincronizarFila();
       expect(prov.temPendentes, isFalse);
     });

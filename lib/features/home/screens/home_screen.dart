@@ -170,6 +170,7 @@ class _JornadaHomeSectionState extends State<_JornadaHomeSection> {
     final resultado = await prov.registrarPonto(
       latitude: posicao?.latitude,
       longitude: posicao?.longitude,
+      isMocked: posicao?.isMocked,
     );
     if (!mounted || resultado.jaEmAndamento) return;
     if (resultado.enfileirado) {

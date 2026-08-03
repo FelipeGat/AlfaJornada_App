@@ -139,6 +139,7 @@ void main() {
         capturedAt: DateTime(2026, 8, 3, 7, 58, 12),
         latitude: -20.33,
         longitude: -40.29,
+        isMocked: true,
         erro: 'Janela vencida',
       );
       final volta = PontoPendente.fromJson(original.toJson());
@@ -146,6 +147,7 @@ void main() {
       expect(volta.capturedAt, original.capturedAt);
       expect(volta.latitude, -20.33);
       expect(volta.longitude, -40.29);
+      expect(volta.isMocked, isTrue);
       expect(volta.erro, 'Janela vencida');
     });
   });

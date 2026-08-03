@@ -87,6 +87,7 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
   Future<RegistrarPontoResultado> registrarPonto({
     double? latitude,
     double? longitude,
+    bool? isMocked,
   }) async {
     // Guarda de reentrância: dois toques na janela do GPS não podem
     // virar duas batidas (ENTRADA+SAÍDA com segundos de diferença).
@@ -96,12 +97,14 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
     _registrando = true;
     notifyListeners();
     try {
-      await _service.registrarPonto(latitude: latitude, longitude: longitude);
+      await _service.registrarPonto(
+          latitude: latitude, longitude: longitude, isMocked: isMocked);
       await carregarStatus(refresh: true);
       return const RegistrarPontoResultado();
     } on JornadaServiceException catch (e) {
       if (e.isConnectionError) {
-        await _enfileirar(latitude: latitude, longitude: longitude);
+        await _enfileirar(
+            latitude: latitude, longitude: longitude, isMocked: isMocked);
         return const RegistrarPontoResultado(enfileirado: true);
       }
       return RegistrarPontoResultado(erro: e);
@@ -240,12 +243,14 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
         _kChaveFila, _fila.map((p) => jsonEncode(p.toJson())).toList());
   }
 
-  Future<void> _enfileirar({double? latitude, double? longitude}) async {
+  Future<void> _enfileirar(
+      {double? latitude, double? longitude, bool? isMocked}) async {
     final pendente = PontoPendente(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       capturedAt: DateTime.now(),
       latitude: latitude,
       longitude: longitude,
+      isMocked: isMocked,
     );
     _fila = [..._fila, pendente];
     await _salvarFila();
@@ -272,6 +277,7 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
             latitude: pendente.latitude,
             longitude: pendente.longitude,
             dataHora: pendente.capturedAt,
+            isMocked: pendente.isMocked,
           );
           _fila = _fila.where((p) => p.id != pendente.id).toList();
         } on JornadaServiceException catch (e) {
