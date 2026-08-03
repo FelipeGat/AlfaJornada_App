@@ -248,6 +248,9 @@ class _AlfaJornadaAnimatedLogoState extends State<AlfaJornadaAnimatedLogo>
         ),
       ],
     );
-    return widget.centered ? Center(child: row) : row;
+    // scaleDown: em tela estreita ou text scale alto o lockup encolhe
+    // inteiro em vez de estourar o Row (overflow visto em aparelho real).
+    final fitted = FittedBox(fit: BoxFit.scaleDown, child: row);
+    return widget.centered ? Center(child: fitted) : fitted;
   }
 }

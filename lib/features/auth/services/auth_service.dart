@@ -188,7 +188,14 @@ class AuthService {
         '${ApiEnvironment.baseUrlFor(product)}$path',
         data: body,
       );
-      final data = res.data as Map<String, dynamic>;
+      // Resposta 200 não-JSON (ex.: captive portal de Wi-Fi devolvendo
+      // HTML) não pode virar TypeError silencioso — vira erro amigável.
+      final raw = res.data;
+      if (raw is! Map<String, dynamic>) {
+        throw AuthException(
+            'Resposta inesperada do servidor. Verifique sua conexão e tente novamente.');
+      }
+      final data = raw;
       var token = _extractToken(data);
       final name = _extractName(data, email);
       final usuarioId = MeProfile._asInt(data['id']);

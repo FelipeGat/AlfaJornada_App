@@ -1,6 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'core/api/api_client.dart';
@@ -35,24 +40,46 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Sem isso, qualquer DateFormat com locale explícito ('pt_BR', usado no
-  // relógio do Modo Totem) lança LocaleDataException a cada rebuild —
-  // no release isso aparecia como tela cinza (ErrorWidget sem texto),
-  // repetindo a cada segundo junto com o timer do relógio.
-  await initializeDateFormatting('pt_BR', null);
 
-  final firebaseOptions = DefaultFirebaseOptions.currentPlatform;
-  if (firebaseOptions != null) {
+  // Inter vem embarcada em google_fonts/ — nunca buscar fonte na rede
+  // (primeiro boot offline é caso real: bater ponto sem sinal).
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  // Locale fixo pt-BR: DatePicker/Material em português e DateFormat com
+  // símbolos corretos. Sem isso, qualquer DateFormat com locale explícito
+  // ('pt_BR', usado no relógio do Modo Totem) lança LocaleDataException a
+  // cada rebuild — no release isso aparecia como tela cinza (ErrorWidget
+  // sem texto), repetindo a cada segundo junto com o timer do relógio.
+  Intl.defaultLocale = 'pt_BR';
+  await initializeDateFormatting('pt_BR');
+
+  // Firebase só em Android/iOS — o firebase_options.dart gerado pelo
+  // FlutterFire lança UnsupportedError nas outras plataformas (web
+  // nunca usou push aqui).
+  if (!kIsWeb) {
     try {
       // Timeout defensivo — sem rede/DNS bloqueado, o Future do Firebase
       // pode nunca resolver nem lançar erro, travando o app inteiro numa
       // tela branca antes mesmo do primeiro frame (notificações push são
       // best-effort, não podem bloquear o boot do app).
-      await Firebase.initializeApp(options: firebaseOptions)
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
           .timeout(const Duration(seconds: 5));
     } catch (e) {
       logDebug('Firebase init falhou: $e');
     }
+  }
+
+  // Crashlytics: captura erros não tratados de Flutter e de plataforma.
+  // Sem suporte web, e só quando o Firebase subiu; em debug os crashes
+  // continuam indo pro console normalmente (coleta desligada).
+  if (!kIsWeb && Firebase.apps.isNotEmpty) {
+    final crashlytics = FirebaseCrashlytics.instance;
+    await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+    FlutterError.onError = crashlytics.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      crashlytics.recordError(error, stack, fatal: true);
+      return true;
+    };
   }
 
   final storage = AuthStorage();
@@ -151,6 +178,8 @@ class _AlfaJornadaAppState extends State<AlfaJornadaApp> {
       title: 'AlfaJornada',
       navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('pt', 'BR')],
       theme: AppTheme.fromBranding(lightBranding),
       darkTheme: AppTheme.darkFromBranding(darkBranding),
       themeMode: themeProvider.mode,

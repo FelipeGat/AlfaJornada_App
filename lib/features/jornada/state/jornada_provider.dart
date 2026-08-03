@@ -16,11 +16,19 @@ import '../services/jornada_service.dart';
 /// sucesso "otimista" (sem rede, foi pra fila offline) e erro real, pra
 /// tela decidir a mensagem certa.
 class RegistrarPontoResultado {
-  const RegistrarPontoResultado({this.erro, this.enfileirado = false});
+  const RegistrarPontoResultado({
+    this.erro,
+    this.enfileirado = false,
+    this.jaEmAndamento = false,
+  });
 
   final JornadaServiceException? erro;
   final bool enfileirado;
-  bool get sucesso => erro == null;
+
+  /// Já havia um registro em andamento (ex.: toque duplo) — a chamada
+  /// foi ignorada e a tela não deve mostrar nada.
+  final bool jaEmAndamento;
+  bool get sucesso => erro == null && !jaEmAndamento;
 }
 
 /// Estado do módulo "Meu Ponto" — status do dia + histórico paginado +
@@ -79,16 +87,24 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
   Future<RegistrarPontoResultado> registrarPonto({
     double? latitude,
     double? longitude,
+    bool? isMocked,
   }) async {
+    // Guarda de reentrância: dois toques na janela do GPS não podem
+    // virar duas batidas (ENTRADA+SAÍDA com segundos de diferença).
+    if (_registrando) {
+      return const RegistrarPontoResultado(jaEmAndamento: true);
+    }
     _registrando = true;
     notifyListeners();
     try {
-      await _service.registrarPonto(latitude: latitude, longitude: longitude);
+      await _service.registrarPonto(
+          latitude: latitude, longitude: longitude, isMocked: isMocked);
       await carregarStatus(refresh: true);
       return const RegistrarPontoResultado();
     } on JornadaServiceException catch (e) {
       if (e.isConnectionError) {
-        await _enfileirar(latitude: latitude, longitude: longitude);
+        await _enfileirar(
+            latitude: latitude, longitude: longitude, isMocked: isMocked);
         return const RegistrarPontoResultado(enfileirado: true);
       }
       return RegistrarPontoResultado(erro: e);
@@ -227,12 +243,14 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
         _kChaveFila, _fila.map((p) => jsonEncode(p.toJson())).toList());
   }
 
-  Future<void> _enfileirar({double? latitude, double? longitude}) async {
+  Future<void> _enfileirar(
+      {double? latitude, double? longitude, bool? isMocked}) async {
     final pendente = PontoPendente(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       capturedAt: DateTime.now(),
       latitude: latitude,
       longitude: longitude,
+      isMocked: isMocked,
     );
     _fila = [..._fila, pendente];
     await _salvarFila();
@@ -248,25 +266,32 @@ class JornadaProvider extends ChangeNotifier implements Clearable {
     if (_sincronizando || _fila.isEmpty) return;
     _sincronizando = true;
     notifyListeners();
-    final ordenada = [..._fila]..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
-    for (final pendente in ordenada) {
-      try {
-        await _service.registrarPonto(
-          latitude: pendente.latitude,
-          longitude: pendente.longitude,
-          dataHora: pendente.capturedAt,
-        );
-        _fila = _fila.where((p) => p.id != pendente.id).toList();
-      } on JornadaServiceException catch (e) {
-        if (e.isConnectionError) break;
-        final idx = _fila.indexWhere((p) => p.id == pendente.id);
-        if (idx != -1) _fila[idx].erro = e.message;
+    // try/finally: uma exceção inesperada (ex.: PlatformException do
+    // SharedPreferences) não pode deixar `_sincronizando` travado em
+    // true — a fila ficaria bloqueada até reiniciar o app.
+    try {
+      final ordenada = [..._fila]..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+      for (final pendente in ordenada) {
+        try {
+          await _service.registrarPonto(
+            latitude: pendente.latitude,
+            longitude: pendente.longitude,
+            dataHora: pendente.capturedAt,
+            isMocked: pendente.isMocked,
+          );
+          _fila = _fila.where((p) => p.id != pendente.id).toList();
+        } on JornadaServiceException catch (e) {
+          if (e.isConnectionError) break;
+          final idx = _fila.indexWhere((p) => p.id == pendente.id);
+          if (idx != -1) _fila[idx].erro = e.message;
+        }
       }
+      await _salvarFila();
+      await carregarStatus(refresh: true);
+    } finally {
+      _sincronizando = false;
+      notifyListeners();
     }
-    await _salvarFila();
-    await carregarStatus(refresh: true);
-    _sincronizando = false;
-    notifyListeners();
   }
 
   Future<void> descartarPendente(String id) async {

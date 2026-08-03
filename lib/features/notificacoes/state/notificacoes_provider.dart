@@ -107,12 +107,17 @@ class NotificacoesProvider extends ChangeNotifier implements Clearable {
     notifyListeners();
     try {
       final res = await _api.get<List<dynamic>>('/api/notificacoes/me');
+      // Um item malformado não pode derrubar o feed inteiro — pula.
       _lista
         ..clear()
         ..addAll(
-          (res.data ?? [])
-              .whereType<Map<String, dynamic>>()
-              .map(Notificacao.fromJson),
+          (res.data ?? []).whereType<Map<String, dynamic>>().map((j) {
+            try {
+              return Notificacao.fromJson(j);
+            } catch (_) {
+              return null;
+            }
+          }).whereType<Notificacao>(),
         );
       _naoLidas = _lista.where((n) => !n.lida).length;
     } on DioException catch (e) {
@@ -133,7 +138,9 @@ class NotificacoesProvider extends ChangeNotifier implements Clearable {
     }
   }
 
-  Future<void> marcarLida(int id) async {
+  /// Retorna false quando a chamada falhou (ex.: sem rede) — a tela
+  /// avisa em vez de o toque morrer em silêncio.
+  Future<bool> marcarLida(int id) async {
     try {
       await _api.raw.patch('/api/notificacoes/$id/lida');
       final idx = _lista.indexWhere((n) => n.id == id);
@@ -151,10 +158,14 @@ class NotificacoesProvider extends ChangeNotifier implements Clearable {
         _naoLidas = (_naoLidas - 1).clamp(0, 1 << 31);
         notifyListeners();
       }
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> marcarTodasLidas() async {
+  /// Retorna false quando a chamada falhou — ver [marcarLida].
+  Future<bool> marcarTodasLidas() async {
     try {
       await _api.raw.patch('/api/notificacoes/me/marcar-todas-lidas');
       _naoLidas = 0;
@@ -173,7 +184,10 @@ class NotificacoesProvider extends ChangeNotifier implements Clearable {
         }
       }
       notifyListeners();
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   bool setFiltroStatus(FiltroStatusNotif status) {

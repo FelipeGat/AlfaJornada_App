@@ -49,8 +49,9 @@ de plataforma). A distinção real é feita direto pelo `perfil` do usuário:
 - SSH de produção: `ssh alfajornada-prod` (blue/green — ver
   `alfajornada-backend-green`/`-blue`).
 - Dev local: `docker compose up -d` no repo do backend, porta 8085. Pra
-  apontar o app pra lá, editar temporariamente `ApiEnvironment.baseUrlFor`
-  — **nunca commitar esse ponteiro**.
+  apontar o app pra lá:
+  `flutter run --dart-define=API_BASE_URL=http://localhost:8085` —
+  não editar `ApiEnvironment` na mão.
 
 ## Convenções
 

@@ -1,4 +1,4 @@
-package com.alfa.alfa_mobile
+package com.alfa.alfajornada
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,7 +15,7 @@ class MainActivity : FlutterActivity() {
                 "Notificações",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Alertas de acesso e eventos do AlfaControl"
+                description = "Notificações do AlfaJornada"
                 enableLights(true)
                 enableVibration(true)
             }

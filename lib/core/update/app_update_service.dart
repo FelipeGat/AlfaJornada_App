@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:open_filex/open_filex.dart';
@@ -7,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../api/api_client.dart';
+import '../log.dart';
 
 /// Info que veio do endpoint `GET /api/app/version` do AlfaGym backend.
 /// Mantém o mesmo shape do gestor_alfa_mobile pra o dialog e o resto do
@@ -20,6 +22,10 @@ class AppVersionManifest {
   final String? minVersaoIos;
   final DateTime? publicadoEm;
 
+  /// SHA-256 (hex) do APK, quando o backend publica — verificado após o
+  /// download antes de disparar o instalador.
+  final String? sha256;
+
   const AppVersionManifest({
     required this.versao,
     required this.url,
@@ -28,6 +34,7 @@ class AppVersionManifest {
     this.obrigatorio = false,
     this.minVersaoIos,
     this.publicadoEm,
+    this.sha256,
   });
 
   factory AppVersionManifest.fromJson(Map<String, dynamic> j) =>
@@ -41,6 +48,7 @@ class AppVersionManifest {
         publicadoEm: j['publicado_em'] != null
             ? DateTime.tryParse(j['publicado_em'].toString())
             : null,
+        sha256: j['sha256']?.toString(),
       );
 }
 
@@ -140,7 +148,7 @@ class AppUpdateService {
         obrigatorio: manifest.obrigatorio,
       );
     } catch (e) {
-      debugPrint('[AppUpdate] checar erro: $e');
+      logDebug('[AppUpdate] checar erro: $e');
       return null;
     }
   }
@@ -163,9 +171,19 @@ class AppUpdateService {
         erro: 'Instalação direta não suportada nesta plataforma.',
       );
     }
+    // O APK instala com REQUEST_INSTALL_PACKAGES — a URL precisa ser
+    // HTTPS e de host nosso; um manifest adulterado não pode apontar
+    // pra qualquer lugar.
+    if (!_urlConfiavel(m.url)) {
+      return const AppUpdateResult(
+        sucesso: false,
+        erro: 'O endereço de download da atualização não é reconhecido. '
+            'Fale com o suporte.',
+      );
+    }
     try {
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/alfamobi-${m.versao}.apk';
+      final path = '${dir.path}/alfajornada-${m.versao}.apk';
       final file = File(path);
       if (file.existsSync()) file.deleteSync();
 
@@ -201,6 +219,21 @@ class AppUpdateService {
         );
       }
 
+      // Integridade: quando o manifest publica o SHA-256, o hash do
+      // arquivo baixado precisa bater antes de abrir o instalador.
+      final esperado = m.sha256?.trim().toLowerCase();
+      if (esperado != null && esperado.isNotEmpty) {
+        final digest = await sha256.bind(file.openRead()).first;
+        if (digest.toString() != esperado) {
+          await file.delete();
+          return const AppUpdateResult(
+            sucesso: false,
+            erro: 'O arquivo baixado falhou na verificação de integridade. '
+                'Tente novamente.',
+          );
+        }
+      }
+
       final result = await OpenFilex.open(path);
       if (result.type != ResultType.done) {
         return AppUpdateResult(
@@ -214,6 +247,14 @@ class AppUpdateService {
     } catch (e) {
       return AppUpdateResult(sucesso: false, erro: 'Erro no download: $e');
     }
+  }
+
+  /// URL aceitável pra download de APK: HTTPS num host da Alfa.
+  static bool _urlConfiavel(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return false;
+    final host = uri.host.toLowerCase();
+    return host == 'alfasolucoes.cloud' || host.endsWith('.alfasolucoes.cloud');
   }
 
   /// Compara duas versões `X.Y.Z` — retorna -1, 0 ou 1.

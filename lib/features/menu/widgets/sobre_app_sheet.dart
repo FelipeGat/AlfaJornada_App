@@ -84,7 +84,7 @@ class _SobreAppSheetState extends State<_SobreAppSheet> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      'assets/app_icon/alfamobi-icon-alt2.png',
+                      'assets/app_icon/alfajornada_icon.png',
                       width: 88,
                       height: 88,
                       fit: BoxFit.cover,
@@ -103,7 +103,7 @@ class _SobreAppSheetState extends State<_SobreAppSheet> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'AlfaMobi',
+                  'AlfaJornada',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
@@ -191,6 +191,17 @@ class _SobreAppSheetState extends State<_SobreAppSheet> {
                   descricao:
                       'Gestão financeira para a família toda: despesas, receitas, bancos e investimentos por familiar, com dashboard.',
                   url: 'https://home.alfasolucoes.cloud',
+                  onTap: _abrir,
+                  b: b,
+                ),
+                const SizedBox(height: 18),
+                _SectionTitle('LEGAL', b: b),
+                const SizedBox(height: 10),
+                _ContatoTile(
+                  icon: Icons.privacy_tip_outlined,
+                  label: 'Privacidade',
+                  valor: 'Política de privacidade e proteção de dados',
+                  url: 'https://jornada.alfasolucoes.cloud/privacidade',
                   onTap: _abrir,
                   b: b,
                 ),

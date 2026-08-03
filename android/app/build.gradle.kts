@@ -7,6 +7,7 @@ plugins {
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 // Lê credenciais do keystore se o arquivo existir. Não-commitado por design
@@ -18,7 +19,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.alfa.alfa_mobile"
+    namespace = "com.alfa.alfajornada"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -35,7 +36,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.alfa.alfa_mobile"
+        applicationId = "com.alfa.alfajornada"
         // camera_android_camerax (dependência do Modo Totem) exige minSdk 23 — mais alto que
         // o default do Flutter. maxOf evita voltar a cair abaixo se o default subir sozinho.
         minSdk = maxOf(flutter.minSdkVersion, 23)
@@ -57,15 +58,41 @@ android {
 
     buildTypes {
         release {
+            // R8 + shrink de recursos — regras extras em proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // Assina com chave própria quando keystore.properties existe.
-            // Sem o arquivo, cai no debug — preserva `flutter run --release`
-            // em ambientes sem o keystore (CI, outro dev).
+            // Sem o arquivo, cai no debug — mas o build release só passa
+            // com o opt-in explícito allowDebugSigning (gate no fim do
+            // arquivo), pra um APK "release" debug-signed nunca sair por
+            // engano pra distribuição.
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
             }
         }
+    }
+}
+
+// Gate de assinatura: falha builds release sem keystore, a menos que o
+// dev peça debug-sign explicitamente (ex.: testar `flutter run --release`
+// sem a chave): ORG_GRADLE_PROJECT_allowDebugSigning=true ou
+// -PallowDebugSigning=true.
+gradle.taskGraph.whenReady {
+    val vaiBuildarRelease = allTasks.any { it.project == project && it.name.contains("Release") }
+    val temKeystore = keystorePropertiesFile.exists()
+    val debugSignPermitido = project.hasProperty("allowDebugSigning")
+    if (vaiBuildarRelease && !temKeystore && !debugSignPermitido) {
+        throw GradleException(
+            "keystore.properties ausente — o build release seria assinado com a chave DEBUG. " +
+                "Coloque o keystore.properties na raiz de android/ ou, pra um teste local " +
+                "consciente, rode com ORG_GRADLE_PROJECT_allowDebugSigning=true."
+        )
     }
 }
 
