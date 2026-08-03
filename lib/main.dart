@@ -50,14 +50,16 @@ Future<void> main() async {
   Intl.defaultLocale = 'pt_BR';
   await initializeDateFormatting('pt_BR');
 
-  final firebaseOptions = DefaultFirebaseOptions.currentPlatform;
-  if (firebaseOptions != null) {
+  // Firebase só em Android/iOS — o firebase_options.dart gerado pelo
+  // FlutterFire lança UnsupportedError nas outras plataformas (web
+  // nunca usou push aqui).
+  if (!kIsWeb) {
     try {
       // Timeout defensivo — sem rede/DNS bloqueado, o Future do Firebase
       // pode nunca resolver nem lançar erro, travando o app inteiro numa
       // tela branca antes mesmo do primeiro frame (notificações push são
       // best-effort, não podem bloquear o boot do app).
-      await Firebase.initializeApp(options: firebaseOptions)
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
           .timeout(const Duration(seconds: 5));
     } catch (e) {
       logDebug('Firebase init falhou: $e');
