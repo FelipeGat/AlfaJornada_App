@@ -83,7 +83,16 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
           ),
           if (prov.naoLidas > 0)
             TextButton(
-              onPressed: () => prov.marcarTodasLidas(),
+              onPressed: () async {
+                final ok = await prov.marcarTodasLidas();
+                if (!ok && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Não foi possível marcar as notificações como lidas. Verifique sua conexão.')),
+                  );
+                }
+              },
               child: Text(
                 'Marcar todas',
                 style: TextStyle(color: b.primary),
@@ -203,7 +212,17 @@ class _NotificacoesScreenState extends State<NotificacoesScreen> {
       itemBuilder: (context, i) => _NotifCard(
         n: itens[i],
         b: b,
-        onTap: () => prov.marcarLida(itens[i].id),
+        onTap: () async {
+          final estavaNaoLida = !itens[i].lida;
+          final ok = await prov.marcarLida(itens[i].id);
+          if (!ok && estavaNaoLida && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'Não foi possível marcar como lida. Verifique sua conexão.')),
+            );
+          }
+        },
       ),
     );
   }

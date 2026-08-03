@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/api/tenant_context.dart';
+import '../../../core/log.dart';
 import '../../../core/state/clearable.dart';
 import '../../../core/storage/auth_storage.dart';
 import '../../notificacoes/services/push_service.dart';
@@ -234,8 +235,8 @@ class AuthProvider extends ChangeNotifier {
       // Fase B2: se a academia tem mais de uma unidade, parar pra
       // selecionar. Length 1 é resolvido pelo backend (token já vem
       // com unidade_id) — vai direto pra signedIn.
-      debugPrint(
-          'DEBUG login: perfil=${result.perfil} unidades=${result.unidades.length} '
+      logDebug(
+          'login: perfil=${result.perfil} unidades=${result.unidades.length} '
           'unidadeId=${result.unidadeId} academiaId=${result.academiaId} '
           'precisaEscolherAcademia=${result.precisaEscolherAcademia} '
           'precisaSelecionarUnidade=${precisaSelecionarUnidade(result.unidades, perfil: result.perfil)}');

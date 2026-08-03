@@ -100,6 +100,7 @@ class _JornadaHomeSection extends StatefulWidget {
 class _JornadaHomeSectionState extends State<_JornadaHomeSection> {
   Timer? _relogio;
   DateTime _agora = DateTime.now();
+  bool _batendoPonto = false;
 
   @override
   void initState() {
@@ -132,7 +133,15 @@ class _JornadaHomeSectionState extends State<_JornadaHomeSection> {
   Future<void> _registrarHumor(int nota, {String? motivo}) async {
     final prov = context.read<JornadaProvider>();
     final ok = await prov.registrarHumor(nota, motivo: motivo);
-    if (!mounted || !ok) return;
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Não foi possível registrar o humor. Verifique sua conexão e tente de novo.')),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(motivo != null && motivo.trim().isNotEmpty
@@ -143,6 +152,18 @@ class _JornadaHomeSectionState extends State<_JornadaHomeSection> {
   }
 
   Future<void> _baterPonto() async {
+    // Guarda local: o `registrando` do provider só liga depois do GPS
+    // (janela de até ~5s) — sem isso, toque duplo dispara duas batidas.
+    if (_batendoPonto) return;
+    setState(() => _batendoPonto = true);
+    try {
+      await _baterPontoInterno();
+    } finally {
+      if (mounted) setState(() => _batendoPonto = false);
+    }
+  }
+
+  Future<void> _baterPontoInterno() async {
     final prov = context.read<JornadaProvider>();
     final posicao = await obterLocalizacaoAtual();
     if (!mounted) return;
@@ -150,7 +171,7 @@ class _JornadaHomeSectionState extends State<_JornadaHomeSection> {
       latitude: posicao?.latitude,
       longitude: posicao?.longitude,
     );
-    if (!mounted) return;
+    if (!mounted || resultado.jaEmAndamento) return;
     if (resultado.enfileirado) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -230,7 +251,7 @@ class _JornadaHomeSectionState extends State<_JornadaHomeSection> {
           status: status,
           branding: b,
           agora: _agora,
-          registrando: prov.registrando,
+          registrando: prov.registrando || _batendoPonto,
           onBaterPonto: _baterPonto,
         ),
         const SizedBox(height: 12),
@@ -487,7 +508,11 @@ class _HumorDoDiaCardState extends State<_HumorDoDiaCard> {
             children: List.generate(_kEmojisHumor.length, (i) {
               final nota = i + 1;
               final ativo = selecionado == nota;
-              return InkWell(
+              return Semantics(
+                button: true,
+                selected: ativo,
+                label: 'Humor $nota de ${_kEmojisHumor.length}',
+                child: InkWell(
                 onTap: ocupado ? null : () => widget.onEscolher(nota),
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
@@ -512,6 +537,7 @@ class _HumorDoDiaCardState extends State<_HumorDoDiaCard> {
                       fontFamilyFallback: ['Noto Color Emoji'],
                     ),
                   ),
+                ),
                 ),
               );
             }),
@@ -918,26 +944,20 @@ class _NotifBell extends StatelessWidget {
   }
 }
 
-/// Header compacto pra Home operacional do AlfaControl (porteiro/
-/// recepcionista/operador/gestor_cliente) — avatar pequeno + nome/perfil
-/// + badge de status, no lugar do `_AvatarHeader` genérico (96px, usado
-/// por morador/AlfaJornada) — ganha ~50-70px de altura útil de tela.
+/// Avatar grande (96px) com nome do usuário, usado no topo da Home.
 class _AvatarHeader extends StatelessWidget {
   const _AvatarHeader({
     required this.name,
     required this.branding,
     this.foto,
-    this.tipoCodigo,
   });
   final String name;
   final String? foto;
   final AppBranding branding;
-  final String? tipoCodigo;
 
   @override
   Widget build(BuildContext context) {
     const size = 96.0;
-    final tipoLabel = _humanizarTipo(tipoCodigo);
     return Center(
       child: Column(
         children: [
@@ -968,36 +988,9 @@ class _AvatarHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (tipoLabel != null) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-              decoration: BoxDecoration(
-                color: branding.primarySoft,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                tipoLabel,
-                style: TextStyle(
-                  color: branding.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  static String? _humanizarTipo(String? codigo) {
-    if (codigo == null || codigo.trim().isEmpty) return null;
-    return codigo
-        .split(RegExp(r'[_\s]+'))
-        .where((p) => p.isNotEmpty)
-        .map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase())
-        .join(' ');
   }
 
   Widget _avatarChild(double size) {

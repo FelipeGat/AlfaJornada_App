@@ -16,10 +16,13 @@
          a permissão do usuário em Configurações → Apps → AlfaJornada →
          Instalar apps desconhecidos. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- allowBackup=false: os SharedPreferences guardam nome/perfil/IDs
+         do usuário — backup ADB/cloud não deve levá-los. -->
     <application
         android:label="AlfaJornada"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

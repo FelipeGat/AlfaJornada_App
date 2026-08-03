@@ -1,5 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'core/api/api_client.dart';
@@ -35,6 +41,15 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inter vem embarcada em google_fonts/ — nunca buscar fonte na rede
+  // (primeiro boot offline é caso real: bater ponto sem sinal).
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  // Locale fixo pt-BR: DatePicker/Material em português e DateFormat
+  // com símbolos corretos.
+  Intl.defaultLocale = 'pt_BR';
+  await initializeDateFormatting('pt_BR');
+
   final firebaseOptions = DefaultFirebaseOptions.currentPlatform;
   if (firebaseOptions != null) {
     try {
@@ -47,6 +62,19 @@ Future<void> main() async {
     } catch (e) {
       logDebug('Firebase init falhou: $e');
     }
+  }
+
+  // Crashlytics: captura erros não tratados de Flutter e de plataforma.
+  // Sem suporte web, e só quando o Firebase subiu; em debug os crashes
+  // continuam indo pro console normalmente (coleta desligada).
+  if (!kIsWeb && Firebase.apps.isNotEmpty) {
+    final crashlytics = FirebaseCrashlytics.instance;
+    await crashlytics.setCrashlyticsCollectionEnabled(!kDebugMode);
+    FlutterError.onError = crashlytics.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      crashlytics.recordError(error, stack, fatal: true);
+      return true;
+    };
   }
 
   final storage = AuthStorage();
@@ -145,6 +173,8 @@ class _AlfaJornadaAppState extends State<AlfaJornadaApp> {
       title: 'AlfaJornada',
       navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('pt', 'BR')],
       theme: AppTheme.fromBranding(lightBranding),
       darkTheme: AppTheme.darkFromBranding(darkBranding),
       themeMode: themeProvider.mode,

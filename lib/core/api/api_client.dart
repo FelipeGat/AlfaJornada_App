@@ -18,7 +18,15 @@ extension AlfaProductX on AlfaProduct {
 }
 
 class ApiEnvironment {
-  static String baseUrlFor(AlfaProduct product) => 'https://jornada.alfasolucoes.cloud';
+  /// Base da API. Produção é o default seguro; pra apontar pro backend
+  /// local, use `--dart-define=API_BASE_URL=http://localhost:8085` no
+  /// `flutter run` — nada de editar (e arriscar commitar) este arquivo.
+  static const String _baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://jornada.alfasolucoes.cloud',
+  );
+
+  static String baseUrlFor(AlfaProduct product) => _baseUrl;
 
   static String loginPath(AlfaProduct product) => '/api/auth/login';
 }

@@ -84,7 +84,7 @@ class _SobreAppSheetState extends State<_SobreAppSheet> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
-                      'assets/app_icon/alfamobi-icon-alt2.png',
+                      'assets/app_icon/alfajornada_icon.png',
                       width: 88,
                       height: 88,
                       fit: BoxFit.cover,
@@ -103,7 +103,7 @@ class _SobreAppSheetState extends State<_SobreAppSheet> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'AlfaMobi',
+                  'AlfaJornada',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
