@@ -8,7 +8,11 @@ import 'kiosk_api.dart';
 import 'kiosk_face_store.dart';
 
 class KioskSyncResult {
-  const KioskSyncResult({required this.totalEquipe, required this.atualizados, required this.removidos});
+  const KioskSyncResult({
+    required this.totalEquipe,
+    required this.atualizados,
+    required this.removidos,
+  });
 
   final int totalEquipe;
   final int atualizados;
@@ -28,25 +32,48 @@ class KioskSyncService {
   final KioskApi _api;
   final KioskFaceStore _store;
 
-  static const _kVersoesKey = 'alfa.kiosk.face_versions';
+  // Sufixo .v2: a v1 gravava as fotos em getTemporaryDirectory (o SO podia
+  // purgá-las e o reconhecimento morria em silêncio). Trocar a chave força
+  // um re-sync completo pro diretório persistente.
+  static const _kVersoesKey = 'alfa.kiosk.face_versions.v2';
+
+  /// Diretório persistente das fotos de referência — application support,
+  /// não temp: o SO não limpa sozinho, e o desprovisionamento apaga tudo.
+  static Future<Directory> _dirFotos() async {
+    final base = await getApplicationSupportDirectory();
+    final dir = Directory('${base.path}/kiosk_faces');
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    return dir;
+  }
+
+  static Future<String> fotoLocalPath(int funcionarioId) async {
+    final dir = await _dirFotos();
+    return '${dir.path}/kiosk_face_$funcionarioId.jpg';
+  }
 
   Future<KioskSyncResult> sincronizar(String token) async {
     await _store.init();
     final equipe = await _api.equipe(token);
     final versoesConhecidas = await _lerVersoesConhecidas();
     final versoesNovas = <String, String>{};
-    final dir = await getTemporaryDirectory();
+    final dir = await _dirFotos();
 
     var atualizados = 0;
     for (final item in equipe) {
       final chave = item.funcionarioId.toString();
       versoesNovas[chave] = item.faceVersion;
-      if (versoesConhecidas[chave] == item.faceVersion) continue; // sem mudança, pula
+      if (versoesConhecidas[chave] == item.faceVersion) {
+        continue; // sem mudança, pula
+      }
 
       final bytes = await _api.foto(token, item.funcionarioId);
       final file = File('${dir.path}/kiosk_face_$chave.jpg');
       await file.writeAsBytes(bytes, flush: true);
-      await _store.registrar(funcionarioId: item.funcionarioId, imagePath: file.path, nome: item.nome);
+      await _store.registrar(
+        funcionarioId: item.funcionarioId,
+        imagePath: file.path,
+        nome: item.nome,
+      );
       atualizados++;
     }
 
@@ -61,7 +88,23 @@ class KioskSyncService {
     }
 
     await _salvarVersoesConhecidas(versoesNovas);
-    return KioskSyncResult(totalEquipe: equipe.length, atualizados: atualizados, removidos: removidos);
+    return KioskSyncResult(
+      totalEquipe: equipe.length,
+      atualizados: atualizados,
+      removidos: removidos,
+    );
+  }
+
+  /// Desprovisionamento: apaga rostos da base local, fotos de referência e
+  /// o cache de versões. Chamar junto com `KioskStorage.clear()`.
+  Future<void> limparDadosLocais() async {
+    await _store.limparTudo();
+    final dir = await _dirFotos();
+    if (dir.existsSync()) {
+      await dir.delete(recursive: true);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kVersoesKey);
   }
 
   Future<Map<String, String>> _lerVersoesConhecidas() async {

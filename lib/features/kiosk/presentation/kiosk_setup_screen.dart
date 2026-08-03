@@ -23,31 +23,34 @@ class KioskSetupScreen extends StatefulWidget {
 }
 
 class _KioskSetupScreenState extends State<KioskSetupScreen> {
+  // O token salvo NUNCA é reexibido aqui — a tela de setup é alcançável
+  // da recepção, e preencher o campo com o token em claro entregaria a
+  // credencial do terminal (roster + fotos de todo o cliente) pra
+  // qualquer pessoa. Reconfigurar exige colar o token de novo.
   final _tokenController = TextEditingController();
+  final _pinController = TextEditingController();
   bool _validando = false;
   String? _erro;
 
   @override
-  void initState() {
-    super.initState();
-    _carregarTokenSalvo();
-  }
-
-  Future<void> _carregarTokenSalvo() async {
-    final token = await widget.storage.readToken();
-    if (token != null && mounted) _tokenController.text = token;
-  }
-
-  @override
   void dispose() {
     _tokenController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
   Future<void> _validarEContinuar() async {
     final token = _tokenController.text.trim();
+    final pin = _pinController.text.trim();
     if (token.isEmpty) {
       setState(() => _erro = 'Cole o token do terminal.');
+      return;
+    }
+    if (pin.length < 4 || pin.length > 6 || int.tryParse(pin) == null) {
+      setState(
+        () =>
+            _erro = 'Defina um PIN de administrador numérico de 4 a 6 dígitos.',
+      );
       return;
     }
     setState(() {
@@ -59,12 +62,23 @@ class _KioskSetupScreenState extends State<KioskSetupScreen> {
       final syncService = KioskSyncService(widget.api, faceStore);
       final resultado = await syncService.sincronizar(token);
       await widget.storage.saveToken(token);
+      await widget.storage.saveAdminPin(pin);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terminal configurado — ${resultado.totalEquipe} funcionário(s) sincronizado(s).')),
+        SnackBar(
+          content: Text(
+            'Terminal configurado — ${resultado.totalEquipe} funcionário(s) sincronizado(s).',
+          ),
+        ),
       );
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => KioskHomeScreen(api: widget.api, storage: widget.storage, faceStore: faceStore)),
+        MaterialPageRoute(
+          builder: (_) => KioskHomeScreen(
+            api: widget.api,
+            storage: widget.storage,
+            faceStore: faceStore,
+          ),
+        ),
       );
     } on KioskApiException catch (e) {
       setState(() => _erro = e.message);
@@ -100,18 +114,45 @@ class _KioskSetupScreenState extends State<KioskSetupScreen> {
                 Text(
                   'Este tablet vira um terminal fixo de marcação de ponto — sem login individual, com token próprio do aparelho.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: b.textMuted, fontSize: 14, height: 1.4),
+                  style: TextStyle(
+                    color: b.textMuted,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 TextField(
                   controller: _tokenController,
                   decoration: InputDecoration(
                     labelText: 'Token do terminal',
+                    helperText:
+                        'Por segurança, o token não é reexibido — pra reconfigurar, cole-o de novo.',
+                    helperMaxLines: 2,
                     filled: true,
                     fillColor: b.card,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.input)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.input),
+                    ),
                   ),
                   autocorrect: false,
+                  enabled: !_validando,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _pinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: true,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'PIN de administrador (4–6 dígitos)',
+                    helperText: 'Exigido pra sair do Modo Totem neste tablet.',
+                    counterText: '',
+                    filled: true,
+                    fillColor: b.card,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.input),
+                    ),
+                  ),
                   enabled: !_validando,
                 ),
                 if (_erro != null) ...[
@@ -124,11 +165,19 @@ class _KioskSetupScreenState extends State<KioskSetupScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: b.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.button),
+                    ),
                   ),
                   child: _validando
                       ? const SizedBox(
-                          width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text('Validar e sincronizar'),
                 ),
               ],

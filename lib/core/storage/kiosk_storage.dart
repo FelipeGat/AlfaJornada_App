@@ -11,6 +11,7 @@ class KioskStorage {
   static const _kToken = 'alfa.kiosk.token';
   static const _kNome = 'alfa.kiosk.nome';
   static const _kClienteNome = 'alfa.kiosk.cliente_nome';
+  static const _kAdminPin = 'alfa.kiosk.admin_pin';
 
   final _secure = const FlutterSecureStorage();
 
@@ -31,6 +32,25 @@ class KioskStorage {
     return _secure.read(key: _kToken);
   }
 
+  /// PIN de administrador do terminal — exigido pra SAIR do modo totem
+  /// (sem ele, qualquer pessoa na recepção escapa do kiosk pro login).
+  Future<void> saveAdminPin(String pin) async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kAdminPin, pin);
+    } else {
+      await _secure.write(key: _kAdminPin, value: pin);
+    }
+  }
+
+  Future<String?> readAdminPin() async {
+    if (kIsWeb) {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_kAdminPin);
+    }
+    return _secure.read(key: _kAdminPin);
+  }
+
   Future<void> saveTerminalInfo({required String nome}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kNome, nome);
@@ -47,8 +67,10 @@ class KioskStorage {
     await prefs.remove(_kClienteNome);
     if (kIsWeb) {
       await prefs.remove(_kToken);
+      await prefs.remove(_kAdminPin);
     } else {
       await _secure.delete(key: _kToken);
+      await _secure.delete(key: _kAdminPin);
     }
   }
 }

@@ -14,6 +14,7 @@ import 'core/log.dart';
 import 'core/state/clearable.dart';
 import 'core/state/tenant_state.dart';
 import 'core/storage/auth_storage.dart';
+import 'core/storage/kiosk_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/update/app_update_checker.dart';
@@ -27,6 +28,9 @@ import 'features/jornada/services/jornada_gestor_service.dart';
 import 'features/jornada/services/jornada_service.dart';
 import 'features/jornada/state/jornada_gestor_provider.dart';
 import 'features/jornada/state/jornada_provider.dart';
+import 'features/kiosk/data/kiosk_api.dart';
+import 'features/kiosk/data/kiosk_face_store.dart';
+import 'features/kiosk/presentation/kiosk_home_screen.dart';
 import 'features/notificacoes/services/push_service.dart';
 import 'features/notificacoes/state/notificacoes_provider.dart';
 import 'features/splash/splash_screen.dart';
@@ -62,8 +66,9 @@ Future<void> main() async {
       // pode nunca resolver nem lançar erro, travando o app inteiro numa
       // tela branca antes mesmo do primeiro frame (notificações push são
       // best-effort, não podem bloquear o boot do app).
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
-          .timeout(const Duration(seconds: 5));
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 5));
     } catch (e) {
       logDebug('Firebase init falhou: $e');
     }
@@ -86,7 +91,8 @@ Future<void> main() async {
   final api = ApiClient(storage);
   final authService = AuthService(api, storage);
   final pushService = PushService();
-  final auth = AuthProvider(authService, storage, api, pushService)..bootstrap();
+  final auth = AuthProvider(authService, storage, api, pushService)
+    ..bootstrap();
   api.onUnauthorized = () {
     // Qualquer status autenticado (mesmo intermediários) derruba sessão
     // em 401 — evita ficar preso com token inválido.
@@ -115,7 +121,9 @@ Future<void> main() async {
         Provider<HumorService>.value(value: humorService),
         ChangeNotifierProvider<JornadaProvider>.value(value: jornada),
         Provider<JornadaGestorService>.value(value: jornadaGestorService),
-        ChangeNotifierProvider<JornadaGestorProvider>.value(value: jornadaGestor),
+        ChangeNotifierProvider<JornadaGestorProvider>.value(
+          value: jornadaGestor,
+        ),
         ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
       ],
       child: const AlfaJornadaApp(),
@@ -133,6 +141,31 @@ class AlfaJornadaApp extends StatefulWidget {
 class _AlfaJornadaAppState extends State<AlfaJornadaApp> {
   AuthStatus _lastStatus = AuthStatus.unknown;
   bool _showSplash = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tablet-totem reiniciou (queda de energia, update do SO): volta
+    // sozinho pro Modo Totem em vez de ficar preso no login esperando
+    // alguém reconfigurar na mão. Empilhado por cima do fluxo normal —
+    // a saída administrativa do totem faz pop e cai no login.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final kioskToken = await KioskStorage().readToken();
+      if (kioskToken == null || kioskToken.isEmpty) return;
+      final nav = appNavigatorKey.currentState;
+      final ctx = appNavigatorKey.currentContext;
+      if (nav == null || ctx == null) return;
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => KioskHomeScreen(
+            api: KioskApi(ctx.read<ApiClient>()),
+            storage: KioskStorage(),
+            faceStore: KioskFaceStore(),
+          ),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,16 +244,20 @@ class _AlfaJornadaAppState extends State<AlfaJornadaApp> {
                 key: const ValueKey('app'),
                 child: switch (auth.status) {
                   AuthStatus.unknown => Scaffold(
-                      backgroundColor: isDark ? darkBranding.bg : lightBranding.bg,
-                    ),
+                    backgroundColor: isDark
+                        ? darkBranding.bg
+                        : lightBranding.bg,
+                  ),
                   AuthStatus.signedOut => const LoginScreen(),
                   // Estado do fluxo multi-unidade (não usado pelo Jornada
                   // hoje) — mantido só pra AuthStatus continuar exaustivo.
                   AuthStatus.escolhendoAcademia => const LoginScreen(),
-                  AuthStatus.escolhendoUnidade => const SelecionarUnidadeScreen(),
-                  AuthStatus.signedIn => auth.senhaProvisoria
-                      ? const DefinirSenhaScreen()
-                      : const AppUpdateChecker(child: MainShell()),
+                  AuthStatus.escolhendoUnidade =>
+                    const SelecionarUnidadeScreen(),
+                  AuthStatus.signedIn =>
+                    auth.senhaProvisoria
+                        ? const DefinirSenhaScreen()
+                        : const AppUpdateChecker(child: MainShell()),
                 },
               ),
       ),

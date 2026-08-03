@@ -66,6 +66,7 @@ dependencies:
   # mantenedor único; upgrade só depois de testar de novo no piloto. Preso em 0.3.6 (não
   # 0.3.7) porque a 0.3.7 exige sqflite ^3.12.0 do Dart SDK, acima do que este projeto usa.
   face_verification: 0.3.6
+  wakelock_plus: ^1.3.3
 
 dev_dependencies:
   flutter_test:
